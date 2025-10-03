@@ -133,13 +133,7 @@ func cloneNode(node *html.Node) *html.Node {
 }
 
 func cloneTree(node *html.Node) *html.Node {
-	m := &html.Node{
-		Type:     node.Type,
-		DataAtom: node.DataAtom,
-		Data:     node.Data,
-		Attr:     make([]html.Attribute, len(node.Attr)),
-	}
-	copy(m.Attr, node.Attr)
+	m := cloneNode(node)
 
 	for {
 		child := node.FirstChild
