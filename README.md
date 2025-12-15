@@ -69,5 +69,3 @@ to end up with what I want:
 ```
 
 I just need to run `htmangl template.html home_partial.html > home.html`.
-
-

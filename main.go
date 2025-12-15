@@ -80,12 +80,17 @@ func apply(baseDoc, applyDoc *html.Node) *html.Node {
 	newDoc := cloneNode(baseDoc)
 
 	var preDirective, postDirective []*html.Node
-	var seenDirective bool
+	var seenDirective, seenCopyDirective bool
 
 	for node := range baseDoc.ChildNodes() {
 		if node.Type == html.CommentNode && strings.TrimSpace(node.Data) == "htmangl:insert" {
 			seenDirective = true
 			continue
+		}
+
+		if node.Type == html.CommentNode && strings.TrimSpace(node.Data) == "htmangl:copy" {
+			seenCopyDirective = true
+			break
 		}
 
 		if applyNode, ok := toApply[node.Data]; node.Type == html.ElementNode && ok {
@@ -106,16 +111,31 @@ func apply(baseDoc, applyDoc *html.Node) *html.Node {
 		}
 	}
 
-	for _, node := range preDirective {
-		newDoc.AppendChild(node)
-	}
+	if seenCopyDirective {
+		for node := range baseDoc.ChildNodes() {
+			if node.Type == html.CommentNode && strings.TrimSpace(node.Data) == "htmangl:copy" {
+				continue
+			}
+			newDoc.AppendChild(cloneNode(node))
+		}
 
-	for _, node := range toApply {
-		newDoc.AppendChild(cloneTree(node))
-	}
+		for node := range applyDoc.ChildNodes() {
+			newDoc.AppendChild(cloneTree(node))
+		}
 
-	for _, node := range postDirective {
-		newDoc.AppendChild(node)
+		return newDoc
+	} else {
+		for _, node := range preDirective {
+			newDoc.AppendChild(node)
+		}
+
+		for _, node := range toApply {
+			newDoc.AppendChild(cloneTree(node))
+		}
+
+		for _, node := range postDirective {
+			newDoc.AppendChild(node)
+		}
 	}
 
 	return newDoc

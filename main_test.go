@@ -42,6 +42,11 @@ func TestApply(t *testing.T) {
 			apply:    `<html><head></head><body><p>CONTENT</p></body></html>`,
 			expected: `<html><head></head><body><header>HEADER</header><p>CONTENT</p><footer>FOOTER</footer></body></html>`,
 		},
+		"copy elements": {
+			base:     `<html><head><link rel="a" href="b"/><!-- htmangl:copy --></head><body><h1>Hello </h1></body></html>`,
+			apply:    `<html><head><link rel="c" href="d"/></head><body><h1>Bye</h1></body></html>`,
+			expected: `<html><head><link rel="a" href="b"/><link rel="c" href="d"/></head><body><h1>Hello Bye</h1></body></html>`,
+		},
 		"example": {
 			base:     `<html lang="en"><head><meta charset="utf-8" /><title>My website</title><link rel="stylesheet" href="css/screen.css" type="text/css" /></head><body><header><h1>My website</h1></header><!-- htmangl:insert --><footer>Copyright me (this year)</footer></body></html>`,
 			apply:    `<html><head><title> - Home</title></head><body><p>This is my website, welcome.</p></body></html>`,
