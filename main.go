@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"iter"
 	"os"
 	"strings"
 
@@ -63,13 +64,13 @@ func run() error {
 
 // apply may change baseDoc and/or applyDoc while producing the result.
 func apply(baseDoc, applyDoc *html.Node) *html.Node {
-	toApply := map[string]*html.Node{}
+	toApply := newOrderedMap[string, *html.Node]()
 
 	for node := range applyDoc.ChildNodes() {
-		toApply[node.Data] = node
+		toApply.Set(node.Data, node)
 	}
 
-	if len(toApply) == 0 {
+	if toApply.Len() == 0 {
 		return cloneTree(baseDoc)
 	}
 
@@ -93,8 +94,8 @@ func apply(baseDoc, applyDoc *html.Node) *html.Node {
 			break
 		}
 
-		if applyNode, ok := toApply[node.Data]; node.Type == html.ElementNode && ok {
-			delete(toApply, node.Data)
+		if applyNode, ok := toApply.Get(node.Data); node.Type == html.ElementNode && ok {
+			toApply.Delete(node.Data)
 			applied := apply(node, applyNode)
 			if seenDirective {
 				postDirective = append(postDirective, applied)
@@ -129,7 +130,7 @@ func apply(baseDoc, applyDoc *html.Node) *html.Node {
 			newDoc.AppendChild(node)
 		}
 
-		for _, node := range toApply {
+		for _, node := range toApply.Iter() {
 			newDoc.AppendChild(cloneTree(node))
 		}
 
@@ -171,4 +172,53 @@ func renderNode(node *html.Node) string {
 	var buf bytes.Buffer
 	html.Render(&buf, node)
 	return buf.String()
+}
+
+type orderedMap[K comparable, V any] struct {
+	index  int
+	lookup map[K]int
+	keys   []K
+	values []V
+}
+
+func newOrderedMap[K comparable, V any]() *orderedMap[K, V] {
+	return &orderedMap[K, V]{lookup: map[K]int{}}
+}
+
+func (m *orderedMap[K, V]) Set(k K, v V) {
+	m.Delete(k)
+
+	m.lookup[k] = m.index
+	m.index++
+	m.keys = append(m.keys, k)
+	m.values = append(m.values, v)
+}
+
+func (m *orderedMap[K, V]) Get(k K) (V, bool) {
+	if i, ok := m.lookup[k]; ok {
+		return m.values[i], true
+	}
+
+	var v V
+	return v, false
+}
+
+func (m *orderedMap[K, V]) Delete(k K) {
+	delete(m.lookup, k)
+}
+
+func (m *orderedMap[K, V]) Len() int {
+	return len(m.lookup)
+}
+
+func (m *orderedMap[K, V]) Iter() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for i, k := range m.keys {
+			if j, ok := m.lookup[k]; ok && i == j {
+				if !yield(k, m.values[i]) {
+					return
+				}
+			}
+		}
+	}
 }

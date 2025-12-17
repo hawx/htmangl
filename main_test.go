@@ -49,8 +49,8 @@ func TestApply(t *testing.T) {
 		},
 		"example": {
 			base:     `<html lang="en"><head><meta charset="utf-8" /><title>My website</title><link rel="stylesheet" href="css/screen.css" type="text/css" /></head><body><header><h1>My website</h1></header><!-- htmangl:insert --><footer>Copyright me (this year)</footer></body></html>`,
-			apply:    `<html><head><title> - Home</title></head><body><p>This is my website, welcome.</p></body></html>`,
-			expected: `<html lang="en"><head><meta charset="utf-8"/><title>My website - Home</title><link rel="stylesheet" href="css/screen.css" type="text/css"/></head><body><header><h1>My website</h1></header><p>This is my website, welcome.</p><footer>Copyright me (this year)</footer></body></html>`,
+			apply:    `<html><head><title> - Home</title></head><body><img src="hero"/><p>This is my website, welcome.</p></body></html>`,
+			expected: `<html lang="en"><head><meta charset="utf-8"/><title>My website - Home</title><link rel="stylesheet" href="css/screen.css" type="text/css"/></head><body><header><h1>My website</h1></header><img src="hero"/><p>This is my website, welcome.</p><footer>Copyright me (this year)</footer></body></html>`,
 		},
 	}
 
@@ -62,4 +62,38 @@ func TestApply(t *testing.T) {
 			assert.Equal(t, tc.expected, renderNode(apply(baseDoc, applyDoc)))
 		})
 	}
+}
+
+func TestOrderedMap(t *testing.T) {
+	m := newOrderedMap[string, string]()
+
+	m.Set("a", "1")
+	m.Set("b", "2")
+
+	v, ok := m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, "1", v)
+	v, ok = m.Get("b")
+	assert.True(t, ok)
+	assert.Equal(t, "2", v)
+	assert.Equal(t, 2, m.Len())
+
+	m.Set("c", "3")
+	m.Set("a", "4")
+	v, ok = m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, "4", v)
+
+	var got [][2]string
+	for k, v := range m.Iter() {
+		got = append(got, [2]string{k, v})
+	}
+
+	assert.Equal(t, [][2]string{
+		{"b", "2"},
+		{"c", "3"},
+		{"a", "4"},
+	}, got)
+
+	assert.Equal(t, 3, m.Len())
 }
