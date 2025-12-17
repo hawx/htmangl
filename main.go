@@ -7,6 +7,9 @@
 //
 // Use the special comment "<!-- htmangl:insert -->" to replace with applied
 // child nodes instead of appending to the parent.
+//
+// Use the special comment "<!-- htmangl:copy -->" to copy all applied children
+// into the parent.
 package main
 
 import (
