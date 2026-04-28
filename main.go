@@ -16,7 +16,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"iter"
+	"net/http"
 	"os"
 	"strings"
 
@@ -24,7 +26,8 @@ import (
 )
 
 func main() {
-	flag.Usage = func() { fmt.Fprint(os.Stderr, "usage: htmangl BASE APPLY\n") }
+	serve := flag.String("serve", "", "Serve at :port")
+	flag.Usage = func() { fmt.Fprint(os.Stderr, "usage: htmangl [--serve :8080] BASE APPLY\n") }
 	flag.Parse()
 
 	if flag.NArg() != 2 {
@@ -32,14 +35,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(); err != nil {
-		fmt.Fprint(os.Stderr, err)
-		os.Exit(1)
+	if *serve != "" {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if err := run(flag.Arg(0), flag.Arg(1), w); err != nil {
+				fmt.Fprint(os.Stderr, err)
+			}
+		})
+
+		fmt.Fprintf(os.Stderr, "Listening http://localhost%s\n", *serve)
+		http.ListenAndServe(*serve, nil)
+	} else {
+		if err := run(flag.Arg(0), flag.Arg(1), os.Stdout); err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }
 
-func run() error {
-	baseFile, err := os.Open(flag.Arg(0))
+func run(base, apply string, w io.Writer) error {
+	baseFile, err := os.Open(base)
 	if err != nil {
 		return fmt.Errorf("read file: %w", err)
 	}
@@ -50,7 +64,7 @@ func run() error {
 		return fmt.Errorf("parse file: %w", err)
 	}
 
-	applyFile, err := os.Open(flag.Arg(1))
+	applyFile, err := os.Open(apply)
 	if err != nil {
 		return fmt.Errorf("read applied: %w", err)
 	}
@@ -61,12 +75,12 @@ func run() error {
 		return fmt.Errorf("parse applied: %w", err)
 	}
 
-	newDoc := apply(baseDoc, applyDoc)
-	return html.Render(os.Stdout, newDoc)
+	newDoc := mangl(baseDoc, applyDoc)
+	return html.Render(w, newDoc)
 }
 
 // apply may change baseDoc and/or applyDoc while producing the result.
-func apply(baseDoc, applyDoc *html.Node) *html.Node {
+func mangl(baseDoc, applyDoc *html.Node) *html.Node {
 	toApply := newOrderedMap[string, *html.Node]()
 
 	for node := range applyDoc.ChildNodes() {
@@ -99,7 +113,7 @@ func apply(baseDoc, applyDoc *html.Node) *html.Node {
 
 		if applyNode, ok := toApply.Get(node.Data); node.Type == html.ElementNode && ok {
 			toApply.Delete(node.Data)
-			applied := apply(node, applyNode)
+			applied := mangl(node, applyNode)
 			if seenDirective {
 				postDirective = append(postDirective, applied)
 			} else {
